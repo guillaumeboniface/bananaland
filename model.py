@@ -40,20 +40,18 @@ class MLP:
         # returning to the agent the predicted action_values
         return self.inference_model.predict(states)
     
-    def train(self, states, actions, targets, weights):
-        # TODO: this is highly inefficient since we're doing 2 forward passes
-        predicted = self.predict(states)[list(range(self.batch_size)), actions]
-        td_errors = np.abs(predicted - targets)
+    def train(self, states, actions, targets):
         # encode actions as a 1-hot vector
         actions = keras.utils.to_categorical(actions, num_classes=self.action_space_size)
         # keras fit effectively compute the weighted td_errors and backpropagate the gradient
         history = self.trainable_model.fit(
             x=[states, actions],
             y=targets,
-            sample_weight=weights,
+            epochs=1,
             verbose=0)
         self.last_loss = history.history['loss'][-1]
-        return td_errors
     
     def get_weights(self):
+        for w1, w2 in zip(self.trainable_model.get_weights(), self.inference_model.get_weights()):
+            assert((w1 == w2).all())
         return self.trainable_model.get_weights()
