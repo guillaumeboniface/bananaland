@@ -17,7 +17,7 @@ class DLQAgent:
         self.prioritization_importance_sampling = self.prioritization_importance_sampling_start
     
     def act(self, state):
-        greedy_action = np.argmax(self.trained_model.predict([state])[0])
+        greedy_action = np.argmax(self.trained_model.predict(np.array([state]))[0])
         return np.random.choice([greedy_action, np.random.randint(self.action_space_size)],
                          p=[1 - self.epsilon, self.epsilon])
         
@@ -54,8 +54,9 @@ class DLQAgent:
         for i, weights in enumerate(target_model_weights):
             weights *= (1 - self.tau)
             weights += train_model_weights[i] * self.tau
-        self.target_model.update_weights(target_model_weights)
-
+            
+    def health_check(self):
+        return (self.trained_model.last_loss, self.memory.max_prioritization, self.memory.size)
         
 class AgentMemory:
     def __init__(self, size, min_prioritization):
