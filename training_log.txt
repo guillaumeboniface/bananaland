@@ -1,0 +1,96 @@
+Training run on 2020-03-18T13:59:37.092967 
+Lasted 14min14 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.0001,
+  "prioritization_exponent": 0,
+  "prioritization_importance_sampling_start": 0,
+  "prioritization_importance_sampling_end": 0,
+  "batch_size": 64,
+  "update_every": 10,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 5e-06
+}
+Max average score: 0.550000
+
+Training run on 2020-03-18T14:32:42.611280 
+Lasted 28min26 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.0001,
+  "prioritization_exponent": 0,
+  "prioritization_importance_sampling_start": 0,
+  "prioritization_importance_sampling_end": 0,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005
+}
+Max average score: 15.100000
+
+Training run on 2020-03-18T15:26:18.405775 
+Lasted 37min22 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.0001,
+  "prioritization_exponent": 0,
+  "prioritization_importance_sampling_start": 0,
+  "prioritization_importance_sampling_end": 0,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005
+}
+Max average score: 8.100000
+
+Training run on 2020-03-18T21:27:17.876741 
+Lasted 112min43 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.0001,
+  "prioritization_exponent": 0,
+  "prioritization_importance_sampling_start": 0,
+  "prioritization_importance_sampling_end": 0,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005
+}
+Max average score: 15.950000
+

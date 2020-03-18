@@ -6,29 +6,33 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class MLP:
-    def __init__(self, mlp_layers, learning_rate, batch_size, action_space_size, state_size):
+    def __init__(self, mlp_layers, learning_rate, batch_size, action_space_size, state_size, is_dueling=False):
         self.batch_size = batch_size
         self.action_space_size = action_space_size
-        self.model = QNetwork(state_size=state_size, action_size=action_space_size, mlp_specs=mlp_layers)
+        self.model = QNetwork(state_size=state_size, action_size=action_space_size, mlp_specs=mlp_layers, is_dueling=is_dueling).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         self.criterion = nn.MSELoss()
         self.last_loss = None
         
     def predict(self, states):
         # returning to the agent the predicted action_values
-        states = torch.from_numpy(states).float()
+        states = torch.from_numpy(states).float().to(device)
         self.model.eval()
         with torch.no_grad():
             action_values = self.model(states)
-        return action_values.data.numpy()
+        return action_values.cpu().data.numpy()
         
     
-    def train(self, states, actions, targets, weights):
-        states = torch.from_numpy(states).float()
-        actions = torch.from_numpy(actions).long()
-        targets = torch.from_numpy(targets).float()
-        weights = torch.from_numpy(weights).float()
+    def train(self, states, actions, targets, weights=None):
+        if weights is None:
+            weights = np.ones(len(targets))
+        states = torch.from_numpy(states).float().to(device)
+        actions = torch.from_numpy(actions).long().to(device)
+        targets = torch.from_numpy(targets).float().to(device)
+        weights = torch.from_numpy(weights).float().to(device)
         self.optimizer.zero_grad()
         self.model.train()
         output = self.model(states)
@@ -36,10 +40,10 @@ class MLP:
         td_errors = restricted_output - targets
         weighted_losses = (td_errors) ** 2 * weights
         loss = torch.mean(weighted_losses)
-        self.last_loss = loss.data.numpy()
+        self.last_loss = loss.cpu().data.numpy()
         loss.backward()
         self.optimizer.step()
-        return np.abs(td_errors.data.numpy())
+        return np.abs(td_errors.cpu().data.numpy())
     
     def get_weights(self):
         return [w.data for w in self.model.parameters()]
@@ -51,7 +55,7 @@ class MLP:
 class QNetwork(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size=8, action_size=4, mlp_specs=(120, 84), seed=0):
+    def __init__(self, state_size=8, action_size=4, mlp_specs=(120, 84), is_dueling=False, seed=0):
         """Initialize parameters and build model.
         Params
         ======
@@ -62,14 +66,29 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         self.seed = torch.manual_seed(seed)
         # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(state_size, mlp_specs[0])
-        self.fc2 = nn.Linear(mlp_specs[0], mlp_specs[1])
-        self.fc3 = nn.Linear(mlp_specs[1], action_size)
+        if is_dueling:
+            self.fc1 = nn.Linear(state_size, mlp_specs[0])
+            self.fc2 = nn.Linear(mlp_specs[0], mlp_specs[1])
+            self.state_value = nn.Linear(mlp_specs[1], 1)
+            self.action_advantage_value = nn.Linear(mlp_specs[1], action_size)
+            self.forward = self.forward_dueling
+        else:
+            self.fc1 = nn.Linear(state_size, mlp_specs[0])
+            self.fc2 = nn.Linear(mlp_specs[0], mlp_specs[1])
+            self.q_value = nn.Linear(mlp_specs[1], action_size)
 
     def forward(self, state):
         """Build a network that maps state -> action values."""
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.q_value(x)
         return x
+    
+    def forward_dueling(self, state):
+        x = F.relu(self.fc1(state))
+        x = F.relu(self.fc2(x))
+        state_value = self.state_value(x)
+        action_advantage_value = self.action_advantage_value(x)
+        action_advantage_value = action_advantage_value - torch.mean(action_advantage_value, 1)
+        return state_value + action_advantage_value
         

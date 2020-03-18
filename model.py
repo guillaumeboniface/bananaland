@@ -40,7 +40,9 @@ class MLP:
         # returning to the agent the predicted action_values
         return self.inference_model.predict(states)
     
-    def train(self, states, actions, targets, weights):
+    def train(self, states, actions, targets, weights=None):
+        if weights is None:
+            weights = np.ones(len(targets))
         # TODO: this is highly inefficient since we're doing 2 forward passes
         predicted = self.predict(states)[list(range(self.batch_size)), actions]
         td_errors = np.abs(predicted - targets)
