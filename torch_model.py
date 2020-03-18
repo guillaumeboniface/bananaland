@@ -24,21 +24,29 @@ class MLP:
         return action_values.data.numpy()
         
     
-    def train(self, states, actions, targets):
+    def train(self, states, actions, targets, weights):
         states = torch.from_numpy(states).float()
         actions = torch.from_numpy(actions).long()
         targets = torch.from_numpy(targets).float()
-        self.optimizer.zero_grad()   # zero the gradient buffers
+        weights = torch.from_numpy(weights).float()
+        self.optimizer.zero_grad()
         self.model.train()
         output = self.model(states)
         restricted_output = output[range(len(output)),actions.view(-1)]
-        loss = self.criterion(restricted_output, targets)
+        td_errors = restricted_output - targets
+        weighted_losses = (td_errors) ** 2 * weights
+        loss = torch.mean(weighted_losses)
         self.last_loss = loss.data.numpy()
         loss.backward()
         self.optimizer.step()
+        return np.abs(td_errors.data.numpy())
     
     def get_weights(self):
-        return self.model.parameters()
+        return [w.data for w in self.model.parameters()]
+    
+    def set_weights(self, weights):
+        for w1, w2 in zip(self.model.parameters(), weights):
+            w1.data.copy_(w2)
         
 class QNetwork(nn.Module):
     """Actor (Policy) Model."""
