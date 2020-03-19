@@ -78,8 +78,9 @@ class QNetwork(nn.Module):
             self.fc1 = nn.Linear(state_size, mlp_specs[0])
             self.fc2 = nn.Linear(mlp_specs[0], mlp_specs[1])
             self.q_value = nn.Linear(mlp_specs[1], action_size)
+            self.forward = self.simple_forward
 
-    def forward(self, state):
+    def simple_forward(self, state):
         """Build a network that maps state -> action values."""
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))

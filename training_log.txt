@@ -172,3 +172,57 @@ Lasted 9min20
 }
 Max average score: 13.800000
 
+Training run on 2020-03-19T15:24:20.273618 
+Lasted 12min20 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.01,
+  "prioritization_exponent": 0.5,
+  "prioritization_importance_sampling_start": 0.4,
+  "prioritization_importance_sampling_end": 1,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005,
+  "is_ddqn": true,
+  "is_dueling": true,
+  "is_prioritization": false
+}
+Max average score: 15.800000
+
+Training run on 2020-03-19T16:13:44.442962 
+Lasted 12min4 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.01,
+  "prioritization_exponent": 0.5,
+  "prioritization_importance_sampling_start": 0.4,
+  "prioritization_importance_sampling_end": 1,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005,
+  "is_ddqn": true,
+  "is_dueling": true,
+  "is_prioritization": true
+}
+Max average score: 15.000000
+
