@@ -69,7 +69,9 @@ class QNetwork(nn.Module):
         if is_dueling:
             self.fc1 = nn.Linear(state_size, mlp_specs[0])
             self.fc2 = nn.Linear(mlp_specs[0], mlp_specs[1])
+            self.state_value_fc = nn.Linear(mlp_specs[1], mlp_specs[1])
             self.state_value = nn.Linear(mlp_specs[1], 1)
+            self.action_advantage_value_fc = nn.Linear(mlp_specs[1], mlp_specs[1])
             self.action_advantage_value = nn.Linear(mlp_specs[1], action_size)
             self.forward = self.forward_dueling
         else:
@@ -87,8 +89,8 @@ class QNetwork(nn.Module):
     def forward_dueling(self, state):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        state_value = self.state_value(x)
-        action_advantage_value = self.action_advantage_value(x)
-        action_advantage_value = action_advantage_value - torch.mean(action_advantage_value, 1)
+        state_value = self.state_value(F.relu(self.state_value_fc(x)))
+        action_advantage_value = self.action_advantage_value(F.relu(self.action_advantage_value_fc(x)))
+        action_advantage_value = action_advantage_value - torch.mean(action_advantage_value, 1).unsqueeze(1)
         return state_value + action_advantage_value
         
