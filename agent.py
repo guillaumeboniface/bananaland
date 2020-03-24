@@ -1,5 +1,5 @@
 import numpy as np
-from torch_model import MLP
+from tf_model import MLP
 
 class DLQAgent:
     def __init__(self, config, action_space_size, state_size):
@@ -11,19 +11,31 @@ class DLQAgent:
             self.memory_size,
             min_prioritization=self.min_prioritization,
             is_prioritization=self.is_prioritization)
-        # using 2 models for fixed targets
-        self.trained_model = MLP(self.mlp_layers, self.learning_rate, self.batch_size, action_space_size, state_size, self.is_dueling)
-        self.target_model = MLP(self.mlp_layers, self.learning_rate, self.batch_size, action_space_size, state_size, self.is_dueling)
-        self.compute_target = self.ddqn_compute_targets if self.is_ddqn else self.simple_compute_targets
+        # using 2 models for fixed targets and potentially, double DQN
+        model_output_shape = action_space_size if not self.is_distributional else (action_space_size, self.distributional_n)
+        self.trained_model = MLP(self.mlp_layers, self.learning_rate, self.batch_size, model_output_shape, state_size, self.is_dueling, self.is_distributional)
+        self.target_model = MLP(self.mlp_layers, self.learning_rate, self.batch_size, model_output_shape, state_size, self.is_dueling, self.is_distributional)
         self.step_counter = 0
+        # adapt the model if we use replay prioritization, see https://arxiv.org/pdf/1511.05952.pdf
         if self.is_prioritization:
             self.update = self.update_with_prioritization
             self.prioritization_importance_sampling = self.prioritization_importance_sampling_start
         else:
             self.update = self.simple_update
+        # adapt the model to use a distributional architecture, see https://arxiv.org/pdf/1707.06887.pdf
+        if self.is_distributional:
+            self.atoms, self.delta_z = self.compute_distribution_params()
+            self.compute_targets = self.compute_distributional_targets
+            self.act = self.act_distributional
+        else:
+            self.compute_targets = self.compute_simple_targets
+            self.act = self.act_simple
     
-    def act(self, state):
+    def act_simple(self, state):
         return np.argmax(self.trained_model.predict(state.reshape((1,) + state.shape))[0])
+    
+    def act_distributional(self, state):
+        return np.argmax(self.get_action_value_from_distributional_model(self.trained_model, state.reshape((1,) + state.shape))[0])
         
     def step(self, state, action, next_state, reward, done):
         self.memory.add((state, action, next_state, reward, done))
@@ -40,7 +52,7 @@ class DLQAgent:
     def simple_update(self):
         states, actions, next_states, rewards, dones = self.memory.sample(self.batch_size)
         
-        targets = self.compute_target(rewards, next_states, dones)
+        targets = self.compute_targets(rewards, next_states, dones)
         self.trained_model.train(states, actions, targets)
         
         self.target_network_update()
@@ -52,7 +64,7 @@ class DLQAgent:
         # normalize weights so that they can only lower the update, see https://arxiv.org/pdf/1511.05952.pdf
         weights /= max(weights)
         
-        targets = self.compute_target(rewards, next_states, dones)
+        targets = self.compute_targets(rewards, next_states, dones)
         td_errors = self.trained_model.train(states, actions, targets, weights)
         new_prioritizations = td_errors ** self.prioritization_exponent
         
@@ -70,15 +82,45 @@ class DLQAgent:
     def health_check(self):
         return (self.trained_model.last_loss, 0, self.memory.size)
     
-    def simple_compute_targets(self, rewards, next_states, dones):
-        mask = dones * -1 + 1 # flip 0s and 1s so that we use only the reward for final states
-        return rewards + self.gamma * np.max(self.trained_model.predict(next_states), axis=1) * mask
+    def compute_simple_targets(self, rewards, next_states, dones):
+        mask = 1 - dones # flip 0s and 1s so that we use only the reward for final states
+        if self.is_ddqn:
+            # implement double DQN, using one model for choosing the action and another to evaluate its value
+            greedy_actions = np.argmax(self.trained_model.predict(next_states), axis=1)
+            future_reward = self.gamma * self.target_model.predict(next_states)[list(range(self.batch_size)), greedy_actions]
+        else:
+            # fixed targets
+            future_reward = self.gamma * np.max(self.target_model.predict(next_states), axis=1)
+        return rewards + future_reward * mask
     
-    def ddqn_compute_targets(self, rewards, next_states, dones):
-        mask = dones * -1 + 1 # flip 0s and 1s so that we use only the reward for final states
-        greedy_actions = np.argmax(self.trained_model.predict(next_states), axis=1)
-        # implement double DQN, using one model for choosing the action and another to evaluate its value
-        return rewards + self.gamma * self.target_model.predict(next_states)[list(range(self.batch_size)), greedy_actions] * mask
+    def compute_distributional_targets(self, rewards, next_states, dones):
+        mask = 1 - dones # flip 0s and 1s so that we use only the reward for final states
+        if self.is_ddqn:
+            # implement double DQN, using one model for choosing the action and another to evaluate its value
+            future_actions = np.argmax(self.get_action_value_from_distributional_model(self.trained_model, next_states), axis=1)
+        else:
+            future_actions = np.argmax(self.get_action_value_from_distributional_model(self.target_model, next_states), axis=1)
+        predictions = self.target_model.predict(next_states)[list(range(self.batch_size)), future_actions]
+        
+        expanded_atoms = np.tile(self.atoms, self.batch_size).reshape(self.batch_size, self.distributional_n)
+        
+        Tz = np.clip(rewards.reshape(self.batch_size, 1) + self.gamma * expanded_atoms * mask.reshape(self.batch_size, 1), self.distributional_min, self.distributional_max)
+        Tz = np.tile(Tz, self.distributional_n).reshape((self.batch_size, self.distributional_n, self.distributional_n))
+        expanded_atoms = expanded_atoms.reshape((self.batch_size, self.distributional_n, 1))
+        clipped_quotient = np.clip(1 - np.abs((Tz - expanded_atoms) / self.delta_z), 0, 1)
+        
+        targets = np.sum(clipped_quotient * predictions.reshape((self.batch_size, 1, self.distributional_n)), axis=-1)
+
+        return targets
+        
+        
+    def get_action_value_from_distributional_model(self, model, states):
+        return np.sum(model.predict(states) * self.atoms, axis=-1)                                            
+                                                
+    def compute_distribution_params(self):
+        delta_z = (self.distributional_max - self.distributional_min) / (self.distributional_n - 1)
+        atoms = np.array([self.distributional_min + i * delta_z for i in range(self.distributional_n)])
+        return atoms, delta_z
         
 class AgentMemory:
     def __init__(self, storage_shapes, maxlen, min_prioritization=None, is_prioritization=False):

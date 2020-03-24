@@ -226,3 +226,128 @@ Lasted 12min4
 }
 Max average score: 15.000000
 
+Training run on 2020-03-20T10:55:02.128034 
+Lasted 11min45 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.01,
+  "prioritization_exponent": 0.5,
+  "prioritization_importance_sampling_start": 0.4,
+  "prioritization_importance_sampling_end": 1,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005,
+  "distributional_n": 5,
+  "distributional_min": -1,
+  "distributional_max": 16,
+  "is_ddqn": true,
+  "is_dueling": true,
+  "is_prioritization": true,
+  "is_distributional": false
+}
+Max average score: 17.700000
+
+
+Training run on 2020-03-24T09:21:41.190308 
+Lasted 13min16 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.01,
+  "prioritization_exponent": 0.5,
+  "prioritization_importance_sampling_start": 0.4,
+  "prioritization_importance_sampling_end": 1,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005,
+  "distributional_n": 51,
+  "distributional_min": -20,
+  "distributional_max": 20,
+  "is_ddqn": true,
+  "is_dueling": false,
+  "is_prioritization": false,
+  "is_distributional": false
+}
+Max average score: 12.750000
+
+Training run on 2020-03-24T13:22:07.847425 
+Lasted 11min33 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.01,
+  "prioritization_exponent": 0.5,
+  "prioritization_importance_sampling_start": 0.4,
+  "prioritization_importance_sampling_end": 1,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005,
+  "distributional_n": 51,
+  "distributional_min": -20,
+  "distributional_max": 20,
+  "is_ddqn": true,
+  "is_dueling": false,
+  "is_prioritization": false,
+  "is_distributional": false
+}
+Max average score: 12.500000
+
+Training run on 2020-03-24T18:23:28.413481 
+Lasted 12min53 
+{
+  "num_episodes": 500,
+  "gamma": 0.99,
+  "epsilon_start": 0,
+  "epsilon_decay": 0.995,
+  "epsilon_min": 0,
+  "tau": 0.001,
+  "memory_size": 100000,
+  "min_prioritization": 0.01,
+  "prioritization_exponent": 0.5,
+  "prioritization_importance_sampling_start": 0.4,
+  "prioritization_importance_sampling_end": 1,
+  "batch_size": 64,
+  "update_every": 4,
+  "mlp_layers": [
+    200,
+    150
+  ],
+  "learning_rate": 0.0005,
+  "distributional_n": 51,
+  "distributional_min": -20,
+  "distributional_max": 20,
+  "is_ddqn": true,
+  "is_dueling": false,
+  "is_prioritization": false,
+  "is_distributional": true
+}
+Max average score: 14.150000
+
