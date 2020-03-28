@@ -17,8 +17,9 @@ All of those variations can be combined through configuration flags. We compare 
 ## Installing the repo
 
 If you don't have it already, install [conda](https://docs.conda.io/en/latest/miniconda.html) and create a dedicated python environment
-
 > conda create --name bananaland python=3.6
+
+Activate the environment
 > conda activate bananaland
 
 From the root folder of the repo, install the python requirements
