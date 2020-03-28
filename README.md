@@ -1,6 +1,6 @@
 # Bananaland
 
-This repository contains an implementation of a DQN agent to solve the Banana environment. The environment is a 3D space stochastically populated with blue and yellow bananas. At each step the agent has 4 actions (move forward, move backward, turn right and turn left). Walking over a blue banana result in a -1 reward, walking over a yellow banan results in a +1 reward. The environment is considered 'won' if the agent succeeds in getting an average reward of 13 over 100 consecutive episodes. Each episode lasts 300 steps.
+This repository contains an implementation of a DQN agent to solve the Banana environment. The environment is a 3D space stochastically populated with blue and yellow bananas. At each step the agent has 4 actions (move forward, move backward, turn right and turn left). Walking over a blue banana results in a -1 reward, walking over a yellow banana results in a +1 reward. The environment is considered 'won' if the agent succeeds in getting an average reward of 13 over 100 consecutive episodes. Each episode lasts 300 steps.
 
 ![banana environment](./banana.gif)
 

@@ -44,6 +44,7 @@ class DLQAgent:
         action_space_size, int, number of possible actions
         
         state_size, int, length of the state array
+        
         """
         self.__dict__.update(config.as_dict())
         self.action_space_size = action_space_size

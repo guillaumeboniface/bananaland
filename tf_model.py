@@ -32,7 +32,7 @@ class MLP:
         self.model = Q_model(state_size=state_size, output_shape=output_shape, mlp_specs=mlp_layers, is_dueling=is_dueling)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         # we keep track of the loss for last training step for logging purposes
-        self.last_loss = None
+        self.last_loss = 0
         if is_distributional:
             self.loss = tf.nn.softmax_cross_entropy_with_logits
         else:
