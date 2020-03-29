@@ -10,7 +10,7 @@ Our implementation contains different variant of DQN, specifically:
 - Prioritized replay DQN (based on https://arxiv.org/pdf/1511.05952.pdf)
 - Distributional DQN (based on https://arxiv.org/pdf/1707.06887.pdf)
 
-All of those variations can be combined through configuration flags. We compare their relative performance in the graph below, with 'Combined' standing for the activations of all these options in the same agent. The best performance is obtained with the combined agent, solving the environment in XX episode. Note that the comparison isn't rigorous as the environment is stochastic, running each agent multiple time and averaging their performance would yield a more robust conclusion.
+All of those variations can be combined through configuration flags. We compare their relative performance in the graph below, with 'Combined' standing for the activations of all these options in the same agent. The best performance is obtained with the combined agent, solving the environment in ~400 episodes. Note that the comparison isn't rigorous as the environment is stochastic, running each agent multiple time and averaging their performance would yield a more robust conclusion.
 
 ![performance graphics](./performance_graphics.png)
 
