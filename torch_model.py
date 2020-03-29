@@ -1,16 +1,14 @@
 import os
 import numpy as np
 
-import tensorflow as tf
-import tensorflow.keras.layers as layers
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 
-tf.random.set_seed(0)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class MLP:
-    """
-    Multi-layer perception model designed to support a DQN agent. Supports dueling and distributional architectures.
-    
-    """
     def __init__(self, mlp_layers, learning_rate, batch_size, output_shape, state_size, is_dueling=False, is_distributional=False):
         """
         Constructor for the MLP class
@@ -30,11 +28,11 @@ class MLP:
         self.output_shape = output_shape
         self.is_distributional = is_distributional
         self.model = Q_model(state_size=state_size, output_shape=output_shape, mlp_specs=mlp_layers, is_dueling=is_dueling)
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         # we keep track of the loss for last training step for logging purposes
         self.last_loss = 0
         if is_distributional:
-            self.loss = tf.nn.softmax_cross_entropy_with_logits
+            self.loss = self.softmax_cross_entropy_with_logits
         else:
             self.loss = self.squared_loss
         
@@ -51,10 +49,13 @@ class MLP:
         Q-values, float array shape=(batch_size,) + output_shape        
         
         """
-        action_values = self.model(tf.Variable(states))
-        if self.is_distributional:
-            action_values = tf.nn.softmax(action_values, axis=-1)
-        return action_values.numpy()        
+        states = torch.from_numpy(states).float().to(device)
+        self.model.eval()
+        with torch.no_grad():
+            action_values = self.model(states)
+            if self.is_distributional:
+                action_values = F.softmax(action_values, dim=-1)
+        return action_values.cpu().data.numpy()
     
     def train(self, states, actions, targets, weights=None):
         """
@@ -69,16 +70,15 @@ class MLP:
         
         """
         if weights is None:
-            weights = tf.ones(len(targets))
-        states = tf.Variable(states, dtype=tf.float32)
-        actions = tf.Variable(actions, dtype=tf.int32)
-        targets = tf.Variable(targets, dtype=tf.float32)
-        weights = tf.Variable(weights, dtype=tf.float32)
+            weights = np.ones(len(targets))
+        states = torch.from_numpy(states).float().to(device)
+        actions = torch.from_numpy(actions).long().to(device)
+        targets = torch.from_numpy(targets).float().to(device)
+        weights = torch.from_numpy(weights).float().to(device)
         loss, td_errors = self._train(states, actions, targets, weights)
-        self.last_loss = loss.numpy()
-        return np.abs(td_errors.numpy())
+        self.last_loss = loss.cpu().data.numpy()
+        return np.abs(td_errors.cpu().data.numpy())
     
-    @tf.function
     def _train(self, states, actions, targets, weights):
         """
         Helper training function, implements the training operation as
@@ -92,19 +92,18 @@ class MLP:
         - weights, float Tensor shape=(batch_size,)
         
         """
-        with tf.GradientTape() as tape:
-            output = self.model(states)
-            actions_index = tf.stack([tf.range(self.batch_size), actions], axis=-1)
-            restricted_output = tf.gather_nd(output, actions_index)
-            losses = self.loss(targets, restricted_output)
-            weighted_losses = losses * weights
-            loss = tf.math.reduce_mean(weighted_losses)
-        grads = tape.gradient(loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+        self.optimizer.zero_grad()
+        self.model.train()
+        output = self.model(states)
+        restricted_output = output[range(len(output)), actions.view(-1)]
+        losses = self.loss(restricted_output, targets)
+        weighted_losses = losses * weights
+        loss = torch.mean(weighted_losses)
+        loss.backward()
+        self.optimizer.step()
         return loss, losses
-    
-    @tf.function
-    def squared_loss(self, targets, predictions):
+        
+    def squared_loss(self, predictions, targets):
         """
         Squared loss function 
         
@@ -118,7 +117,26 @@ class MLP:
         Losses, float array shape=(batch_size,)
         
         """
-        return (targets - predictions) ** 2
+        return (predictions - targets) ** 2
+    
+    def softmax_cross_entropy_with_logits(self, logits, targets):
+        """
+        Softmax cross entropy with logits loss function 
+        
+        Parameters
+        ----------
+        - targets, float Tensor shape=(batch_size, num_atoms)
+        - predictions, float Tensor shape=(batch_size, num_atoms)
+        
+        Return
+        ---------
+        Losses, float array shape=(batch_size,)
+        
+        """
+        logits_max = torch.max(logits, dim=-1, keepdim=True)[0]
+        shifted_logits = logits - logits_max
+        
+        return torch.sum(-targets * (shifted_logits - torch.log(torch.sum(torch.exp(shifted_logits), dim=-1, keepdim=True))), dim=-1)
     
     def get_weights(self):
         """
@@ -129,7 +147,7 @@ class MLP:
         Model weights, float array, 2D arrays (one sub-array per layer in the model)
         
         """
-        return self.model.get_weights()
+        return [w.data for w in self.model.parameters()]
     
     def set_weights(self, weights):
         """
@@ -140,13 +158,10 @@ class MLP:
         - weights, float array, 2D arrays (one sub-array per layer in the model)
         
         """
-        return self.model.set_weights(weights)
+        for w1, w2 in zip(self.model.parameters(), weights):
+            w1.data.copy_(w2)
         
-class Q_model(tf.keras.Model):
-    """
-    Custom Keras model implementing the MLP architecture.
-    
-    """
+class Q_model(nn.Module):
 
     def __init__(self, state_size=37, output_shape=4, mlp_specs=(120, 84), is_dueling=False):
         """
@@ -160,27 +175,33 @@ class Q_model(tf.keras.Model):
         - is_dueling, boolean, whether to use the dueling architecture
 
         """
-        super(Q_model, self).__init__(self)
+        super(Q_model, self).__init__()
+        self.seed = torch.manual_seed(0)
         if isinstance(output_shape, int):
             output_shape = (output_shape,)
         self.is_dueling = is_dueling
         self.out_shape = output_shape
         output_neurons = int(np.prod(output_shape))
-        self.fc = [layers.Dense(spec, activation='relu') for spec in mlp_specs]
+        self.fc = []
+        in_node = state_size
+        for spec in mlp_specs:
+            self.fc.append(nn.Linear(in_node, spec))
+            in_node = spec
+        # the layers need to be properties of the class instance for the train operation to work
+        for i, fc in enumerate(self.fc):
+            setattr(self, 'fc_' + str(i), fc)
         if is_dueling:
-            # if distributional needs to output the number of atoms
             self.state_value_out_shape = (1, output_shape[-1]) if len(output_shape) > 1 else (1,)
-            self.state_value_fc = layers.Dense(mlp_specs[1], activation='relu')
-            self.state_value = layers.Dense(self.state_value_out_shape[-1])
-            self.action_advantage_value_fc = layers.Dense(mlp_specs[1], activation='relu')
-            self.action_advantage_value = layers.Dense(output_neurons)
-            self.call = self.call_dueling
+            self.state_value_fc = nn.Linear(mlp_specs[1], mlp_specs[1])
+            self.state_value = nn.Linear(mlp_specs[1], 1)
+            self.action_advantage_value_fc = nn.Linear(mlp_specs[1], mlp_specs[1])
+            self.action_advantage_value = nn.Linear(mlp_specs[1], output_neurons)
+            self.forward = self.forward_dueling
         else:
-            self.q_value = layers.Dense(output_neurons)
-            self.call = self.call_simple
-    
-    @tf.function
-    def call_simple(self, input_data):
+            self.q_value = nn.Linear(mlp_specs[-1], output_neurons)
+            self.forward = self.forward_simple
+
+    def forward_simple(self, state):
         """
         Implements the forward pass of the Q_model.
         
@@ -193,13 +214,13 @@ class Q_model(tf.keras.Model):
         Predictions, float Tensor shape=(batch_size, action_space_size)
 
         """
-        x = input_data
-        for layer in self.fc:
-            x = layer(x)
-        return tf.reshape(self.q_value(x), (-1,) + self.out_shape)
+        x = state
+        for fc in self.fc:
+            x = F.relu(fc(x))
+        x = self.q_value(x).view(*((-1,) + self.out_shape))
+        return x
     
-    @tf.function
-    def call_dueling(self, input_data):
+    def forward_dueling(self, state):
         """
         Implements the forward pass of the Q_model in the dueling case.
         
@@ -212,13 +233,10 @@ class Q_model(tf.keras.Model):
         Predictions, float Tensor shape=(batch_size, action_space_size, num_atoms)
 
         """
-        x = input_data
-        for layer in self.fc:
-            x = layer(x)
-        state_value = self.state_value_fc(x)
-        state_value = tf.reshape(self.state_value(state_value), (-1,) + self.state_value_out_shape)
-        action_advantage_value = self.action_advantage_value_fc(x)
-        action_advantage_value = tf.reshape(self.action_advantage_value(action_advantage_value), (-1,) + self.out_shape)
-        action_advantage_value = action_advantage_value - tf.math.reduce_mean(action_advantage_value, axis=1, keepdims=True)
+        x = state
+        for fc in self.fc:
+            x = F.relu(fc(x))
+        state_value = self.state_value(F.relu(self.state_value_fc(x))).view(*((-1,) + self.state_value_out_shape))
+        action_advantage_value = self.action_advantage_value(F.relu(self.action_advantage_value_fc(x))).view(*(-1,) + self.out_shape)
+        action_advantage_value = action_advantage_value - torch.mean(action_advantage_value, 1, keepdim=True)
         return state_value + action_advantage_value
-        

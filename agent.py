@@ -1,5 +1,5 @@
 import numpy as np
-from tf_model import MLP
+from torch_model import MLP
 
 class DLQAgent:
     """
